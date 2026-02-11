@@ -60,34 +60,42 @@ async function bootstrap() {
     logger.error('FIREBASE_PRIVATE_KEY is missing from environment variables');
   } else {
     logger.log(`Raw Private Key Length: ${rawPrivateKey.length}`);
-    logger.log(`Raw Private Key Start: ${rawPrivateKey.substring(0, 30)}...`);
+    logger.log(`Raw Private Key Start: ${rawPrivateKey.substring(0, 40)}...`);
+    logger.log(`Raw Private Key End: ...${rawPrivateKey.substring(rawPrivateKey.length - 40)}`);
     logger.log(`Raw Private Key Includes \\n literal: ${rawPrivateKey.includes('\\n')}`);
     logger.log(`Raw Private Key Includes actual newline: ${rawPrivateKey.includes('\n')}`);
   }
 
   const cleanPrivateKey = rawPrivateKey
-    ? rawPrivateKey.replace(/\\n/g, '\n').replace(/\\\\n/g, '\n') // Handle both single and double escaped \n
+    ? rawPrivateKey
+      .replace(/\\n/g, '\n') // Replace literal \n with newlines
       .replace(/^"|"$/g, '') // Remove surrounding double quotes
       .replace(/^'|'$/g, '') // Remove surrounding single quotes
       .trim()
     : undefined;
 
-  if (cleanPrivateKey) {
-    logger.log(`Cleaned Private Key Length: ${cleanPrivateKey.length}`);
-    logger.log(`Cleaned Private Key Start: ${cleanPrivateKey.substring(0, 30)}...`);
-    if (!cleanPrivateKey.startsWith('-----BEGIN PRIVATE KEY-----')) {
-      logger.error('ERROR: Cleaned key does NOT start with "-----BEGIN PRIVATE KEY-----"');
-    }
-    if (!cleanPrivateKey.endsWith('-----END PRIVATE KEY-----')) {
-      logger.error('ERROR: Cleaned key does NOT end with "-----END PRIVATE KEY-----"');
-    }
+  // Ensure header and footer are correct
+  let finalizedKey = cleanPrivateKey;
+  if (finalizedKey && !finalizedKey.startsWith('-----BEGIN PRIVATE KEY-----')) {
+    logger.warn('Key does not start with header, attempting to fix...');
+    finalizedKey = `-----BEGIN PRIVATE KEY-----\n${finalizedKey}`;
+  }
+  if (finalizedKey && !finalizedKey.endsWith('-----END PRIVATE KEY-----')) {
+    logger.warn('Key does not end with footer, attempting to fix...');
+    finalizedKey = `${finalizedKey}\n-----END PRIVATE KEY-----`;
+  }
+
+  if (finalizedKey) {
+    logger.log(`Finalized Private Key Length: ${finalizedKey.length}`);
+    logger.log(`Finalized Private Key Start: ${finalizedKey.substring(0, 40)}...`);
+    logger.log(`Finalized Private Key End: ...${finalizedKey.substring(finalizedKey.length - 40)}`);
   }
 
   const firebaseConfig = {
     type: 'service_account',
     projectId: process.env.FIREBASE_PROJECT_ID,
     privateKeyId: process.env.FIREBASE_PRIVATE_KEY_ID,
-    privateKey: cleanPrivateKey,
+    privateKey: finalizedKey,
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
     clientId: process.env.FIREBASE_CLIENT_ID,
     authUri: 'https://accounts.google.com/o/oauth2/auth',
