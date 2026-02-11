@@ -68,7 +68,11 @@ RUN pnpm install --prod --frozen-lockfile
 USER nextjs
 
 # Expose the port the app will run on
+# Expose the port the app will run on
 ENV PORT 3000
+# Allow WEB_PORT to override PORT at runtime (handled by docker-compose mapping or startup script if we had one)
+# For standalone Next.js, it listens on process.env.PORT.
+# We will map WEB_PORT to PORT in docker-compose, or rely on hardcoded PORT=3000 in docker-compose.
 EXPOSE ${PORT}
 
 # Health check to verify app is running

@@ -52,7 +52,8 @@ services:
     env_file:
       - ./api/.env
     environment:
-      - PORT=3001
+      - API_PORT=3001
+      - PORT=3001 # Maintain PORT for compatibility but API_PORT takes precedence in code
       - REDIS_URL=${REDIS_URL:-redis://textbee-redis:6379}
 
     depends_on:
@@ -74,7 +75,7 @@ services:
     env_file:
       - ./web/.env
     environment:
-      - PORT=3000
+      - PORT=3000 # Next.js standalone server listens on PORT
       - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3001/api/v1}
 
     depends_on:

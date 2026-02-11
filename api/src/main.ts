@@ -28,7 +28,7 @@ process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
 
 async function bootstrap() {
   const app: NestExpressApplication = await NestFactory.create(AppModule)
-  const PORT = process.env.PORT || 3001
+  const PORT = process.env.API_PORT || process.env.PORT || 3001
 
   app.setGlobalPrefix('api')
   app.enableVersioning({
