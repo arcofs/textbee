@@ -58,11 +58,19 @@ async function bootstrap() {
     type: 'service_account',
     projectId: process.env.FIREBASE_PROJECT_ID,
     privateKeyId: process.env.FIREBASE_PRIVATE_KEY_ID,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY
-      ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') // Replace literal \n with newlines
-        .replace(/^"|"$/g, '') // Remove surrounding double quotes if present
-        .replace(/^'|'$/g, '') // Remove surrounding single quotes if present
-      : undefined,
+    privateKey: (() => {
+      const key = process.env.FIREBASE_PRIVATE_KEY;
+      if (!key) {
+        logger.error('FIREBASE_PRIVATE_KEY is missing or empty!');
+        return undefined;
+      }
+      logger.log(`FIREBASE_PRIVATE_KEY found (length: ${key.length})`);
+      return key
+        .replace(/\\n/g, '\n')
+        .replace(/\\\\n/g, '\n') // Handle double-escaped newlines
+        .replace(/^"|"$/g, '')
+        .replace(/^'|'$/g, '');
+    })(),
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
     clientId: process.env.FIREBASE_CLIENT_ID,
     authUri: 'https://accounts.google.com/o/oauth2/auth',
