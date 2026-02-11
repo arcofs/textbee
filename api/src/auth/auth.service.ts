@@ -36,6 +36,11 @@ export class AuthService {
     private readonly turnstileService: TurnstileService,
   ) {}
 
+  private isRegistrationEnabled() {
+    const raw = (process.env.ALLOW_REGISTRATION ?? 'true').toLowerCase().trim()
+    return !['0', 'false', 'no', 'off'].includes(raw)
+  }
+
   async login(userData: any) {
     await this.turnstileService.verify(userData.turnstileToken)
 
@@ -73,6 +78,12 @@ export class AuthService {
     let user = await this.usersService.findOne({ email })
 
     if (!user) {
+      if (!this.isRegistrationEnabled()) {
+        throw new HttpException(
+          { error: 'Registration is disabled' },
+          HttpStatus.FORBIDDEN,
+        )
+      }
       user = await this.usersService.create({
         name,
         email,
@@ -113,6 +124,13 @@ export class AuthService {
   }
 
   async register(userData: any) {
+    if (!this.isRegistrationEnabled()) {
+      throw new HttpException(
+        { error: 'Registration is disabled' },
+        HttpStatus.FORBIDDEN,
+      )
+    }
+
     await this.turnstileService.verify(userData.turnstileToken)
 
     const existingUser = await this.usersService.findOne({

@@ -19,6 +19,12 @@ import { Routes } from '@/config/routes'
 export default function LoginPage() {
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect')
+  const registrationEnabled =
+    !['0', 'false', 'no', 'off'].includes(
+      (process.env.NEXT_PUBLIC_ALLOW_REGISTRATION ?? 'true')
+        .toLowerCase()
+        .trim(),
+    )
 
   return (
     <div className='flex items-center justify-center min-h-screen bg-gray-100 dark:bg-muted'>
@@ -54,20 +60,22 @@ export default function LoginPage() {
           >
             Forgot your password?
           </Link>
-          <p className='text-sm text-gray-600'>
-            Don&apos;t have an account?{' '}
-            <Link
-              href={{
-                pathname: Routes.register,
-                query: {
-                  redirect: redirect ? decodeURIComponent(redirect) : undefined,
-                },
-              }}
-              className='font-medium text-brand-600 hover:underline'
-            >
-              Sign up
-            </Link>
-          </p>
+          {registrationEnabled && (
+            <p className='text-sm text-gray-600'>
+              Don&apos;t have an account?{' '}
+              <Link
+                href={{
+                  pathname: Routes.register,
+                  query: {
+                    redirect: redirect ? decodeURIComponent(redirect) : undefined,
+                  },
+                }}
+                className='font-medium text-brand-600 hover:underline'
+              >
+                Sign up
+              </Link>
+            </p>
+          )}
         </CardFooter>
       </Card>
     </div>

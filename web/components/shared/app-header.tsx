@@ -22,6 +22,12 @@ import { Session } from 'next-auth'
 
 export default function AppHeader({ session }: { session: Session }) {
   const router = useRouter()
+  const registrationEnabled =
+    !['0', 'false', 'no', 'off'].includes(
+      (process.env.NEXT_PUBLIC_ALLOW_REGISTRATION ?? 'true')
+        .toLowerCase()
+        .trim(),
+    )
 
   const handleLogout = () => {
     signOut()
@@ -130,13 +136,15 @@ export default function AppHeader({ session }: { session: Session }) {
               <Button asChild variant='ghost' className='justify-start'>
                 <Link href={Routes.login}>Log in</Link>
               </Button>
-              <Button
-                asChild
-                color='primary'
-                className='bg-primary hover:bg-primary/90 text-white rounded-full'
-              >
-                <Link href={Routes.register}>Get started</Link>
-              </Button>
+              {registrationEnabled && (
+                <Button
+                  asChild
+                  color='primary'
+                  className='bg-primary hover:bg-primary/90 text-white rounded-full'
+                >
+                  <Link href={Routes.register}>Get started</Link>
+                </Button>
+              )}
             </>
           )}
         </nav>
@@ -186,12 +194,14 @@ export default function AppHeader({ session }: { session: Session }) {
                 <Button asChild variant='ghost'>
                   <Link href={Routes.login}>Log in</Link>
                 </Button>
-                <Button
-                  asChild
-                  className='bg-primary hover:bg-primary/90 text-white rounded-full'
-                >
-                  <Link href={Routes.register}>Get started</Link>
-                </Button>
+                {registrationEnabled && (
+                  <Button
+                    asChild
+                    className='bg-primary hover:bg-primary/90 text-white rounded-full'
+                  >
+                    <Link href={Routes.register}>Get started</Link>
+                  </Button>
+                )}
               </div>
             )}
             <MobileMenu />

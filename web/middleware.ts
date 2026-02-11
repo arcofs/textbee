@@ -4,6 +4,13 @@ import { getToken } from 'next-auth/jwt'
 import { Routes } from './config/routes'
 
 export async function middleware(request: NextRequest) {
+  const registrationEnabled =
+    !['0', 'false', 'no', 'off'].includes(
+      (process.env.NEXT_PUBLIC_ALLOW_REGISTRATION ?? 'true')
+        .toLowerCase()
+        .trim(),
+    )
+
   // Extract token using the secret for session-based authentication
   const token = await getToken({
     req: request,
@@ -34,6 +41,11 @@ export async function middleware(request: NextRequest) {
   if (token && (pathname === Routes.login || pathname === Routes.register)) {
     const dashboardUrl = new URL(Routes.dashboard, request.url)
     return NextResponse.redirect(dashboardUrl)
+  }
+
+  if (!registrationEnabled && pathname === Routes.register) {
+    const loginUrl = new URL(Routes.login, request.url)
+    return NextResponse.redirect(loginUrl)
   }
 
   // Set the pathname in the response headers

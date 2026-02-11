@@ -18,6 +18,45 @@ import { useSearchParams } from 'next/navigation'
 export default function RegisterPage() {
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect')
+  const registrationEnabled =
+    !['0', 'false', 'no', 'off'].includes(
+      (process.env.NEXT_PUBLIC_ALLOW_REGISTRATION ?? 'true')
+        .toLowerCase()
+        .trim(),
+    )
+
+  if (!registrationEnabled) {
+    return (
+      <div className='flex items-center justify-center min-h-screen bg-gray-100 dark:bg-muted'>
+        <Card className='w-[450px] shadow-lg'>
+          <CardHeader className='space-y-1'>
+            <CardTitle className='text-2xl font-bold text-center'>
+              Registration is closed
+            </CardTitle>
+            <CardDescription className='text-center'>
+              New account creation is currently disabled.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className='text-center'>
+            <p className='text-sm text-gray-600'>
+              Already have an account?{' '}
+              <Link
+                href={{
+                  pathname: Routes.login,
+                  query: {
+                    redirect: redirect ? decodeURIComponent(redirect) : undefined,
+                  },
+                }}
+                className='font-medium text-brand-600 hover:underline'
+              >
+                Sign in
+              </Link>
+            </p>
+          </CardFooter>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className='flex items-center justify-center min-h-screen bg-gray-100 dark:bg-muted'>
