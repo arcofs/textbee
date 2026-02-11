@@ -54,23 +54,40 @@ async function bootstrap() {
     },
   })
 
+  // Debug Firebase Env Vars
+  const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY;
+  if (!rawPrivateKey) {
+    logger.error('FIREBASE_PRIVATE_KEY is missing from environment variables');
+  } else {
+    logger.log(`Raw Private Key Length: ${rawPrivateKey.length}`);
+    logger.log(`Raw Private Key Start: ${rawPrivateKey.substring(0, 30)}...`);
+    logger.log(`Raw Private Key Includes \\n literal: ${rawPrivateKey.includes('\\n')}`);
+    logger.log(`Raw Private Key Includes actual newline: ${rawPrivateKey.includes('\n')}`);
+  }
+
+  const cleanPrivateKey = rawPrivateKey
+    ? rawPrivateKey.replace(/\\n/g, '\n').replace(/\\\\n/g, '\n') // Handle both single and double escaped \n
+      .replace(/^"|"$/g, '') // Remove surrounding double quotes
+      .replace(/^'|'$/g, '') // Remove surrounding single quotes
+      .trim()
+    : undefined;
+
+  if (cleanPrivateKey) {
+    logger.log(`Cleaned Private Key Length: ${cleanPrivateKey.length}`);
+    logger.log(`Cleaned Private Key Start: ${cleanPrivateKey.substring(0, 30)}...`);
+    if (!cleanPrivateKey.startsWith('-----BEGIN PRIVATE KEY-----')) {
+      logger.error('ERROR: Cleaned key does NOT start with "-----BEGIN PRIVATE KEY-----"');
+    }
+    if (!cleanPrivateKey.endsWith('-----END PRIVATE KEY-----')) {
+      logger.error('ERROR: Cleaned key does NOT end with "-----END PRIVATE KEY-----"');
+    }
+  }
+
   const firebaseConfig = {
     type: 'service_account',
     projectId: process.env.FIREBASE_PROJECT_ID,
     privateKeyId: process.env.FIREBASE_PRIVATE_KEY_ID,
-    privateKey: (() => {
-      const key = process.env.FIREBASE_PRIVATE_KEY;
-      if (!key) {
-        logger.error('FIREBASE_PRIVATE_KEY is missing or empty!');
-        return undefined;
-      }
-      logger.log(`FIREBASE_PRIVATE_KEY found (length: ${key.length})`);
-      return key
-        .replace(/\\n/g, '\n')
-        .replace(/\\\\n/g, '\n') // Handle double-escaped newlines
-        .replace(/^"|"$/g, '')
-        .replace(/^'|'$/g, '');
-    })(),
+    privateKey: cleanPrivateKey,
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
     clientId: process.env.FIREBASE_CLIENT_ID,
     authUri: 'https://accounts.google.com/o/oauth2/auth',
