@@ -30,6 +30,11 @@ async function bootstrap() {
   const app: NestExpressApplication = await NestFactory.create(AppModule)
   const PORT = process.env.API_PORT || process.env.PORT || 3001
 
+  const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    process.env.NEXT_PUBLIC_SITE_URL,
+  ].filter(Boolean) as string[]
+
   app.setGlobalPrefix('api')
   app.enableVersioning({
     defaultVersion: '1',
@@ -119,8 +124,29 @@ async function bootstrap() {
     '/api/v1/billing/webhook/polar',
     express.raw({ type: 'application/json' }),
   )
-  app.useBodyParser('json', { limit: '2mb' });
-  app.enableCors()
+  app.useBodyParser('json', { limit: '2mb' })
+
+  app.enableCors({
+    origin: (origin, callback) => {
+      // Allow non-browser clients (no Origin header), and configured web origins.
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true)
+      }
+      return callback(new Error(`CORS blocked for origin: ${origin}`), false)
+    },
+    credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'x-api-key',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+    ],
+  })
+
+  logger.log(`CORS allowed origins: ${allowedOrigins.join(', ') || 'none configured'}`)
   await app.listen(PORT)
 }
 bootstrap()
