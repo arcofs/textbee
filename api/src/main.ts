@@ -66,29 +66,31 @@ async function bootstrap() {
     logger.log(`Raw Private Key Includes actual newline: ${rawPrivateKey.includes('\n')}`);
   }
 
-  const cleanPrivateKey = rawPrivateKey
+  // Handle all common env encodings:
+  // - actual multiline key
+  // - single escaped \n
+  // - double escaped \\n (common in deployment UIs)
+  const finalizedKey = rawPrivateKey
     ? rawPrivateKey
-      .replace(/\\n/g, '\n') // Replace literal \n with newlines
-      .replace(/^"|"$/g, '') // Remove surrounding double quotes
-      .replace(/^'|'$/g, '') // Remove surrounding single quotes
       .trim()
-    : undefined;
-
-  // Ensure header and footer are correct
-  let finalizedKey = cleanPrivateKey;
-  if (finalizedKey && !finalizedKey.startsWith('-----BEGIN PRIVATE KEY-----')) {
-    logger.warn('Key does not start with header, attempting to fix...');
-    finalizedKey = `-----BEGIN PRIVATE KEY-----\n${finalizedKey}`;
-  }
-  if (finalizedKey && !finalizedKey.endsWith('-----END PRIVATE KEY-----')) {
-    logger.warn('Key does not end with footer, attempting to fix...');
-    finalizedKey = `${finalizedKey}\n-----END PRIVATE KEY-----`;
-  }
+      .replace(/^["']|["']$/g, '')
+      .replace(/\\\\n/g, '\n')
+      .replace(/\\n/g, '\n')
+    : undefined
 
   if (finalizedKey) {
-    logger.log(`Finalized Private Key Length: ${finalizedKey.length}`);
-    logger.log(`Finalized Private Key Start: ${finalizedKey.substring(0, 40)}...`);
-    logger.log(`Finalized Private Key End: ...${finalizedKey.substring(finalizedKey.length - 40)}`);
+    logger.log(`Finalized Private Key Length: ${finalizedKey.length}`)
+    logger.log(`Finalized Private Key Start: ${finalizedKey.substring(0, 40)}...`)
+    logger.log(
+      `Finalized Private Key End: ...${finalizedKey.substring(finalizedKey.length - 40)}`,
+    )
+
+    if (!finalizedKey.includes('-----BEGIN PRIVATE KEY-----')) {
+      logger.error('Finalized key is missing BEGIN PRIVATE KEY header')
+    }
+    if (!finalizedKey.includes('-----END PRIVATE KEY-----')) {
+      logger.error('Finalized key is missing END PRIVATE KEY footer')
+    }
   }
 
   const firebaseConfig = {
@@ -101,7 +103,7 @@ async function bootstrap() {
     authUri: 'https://accounts.google.com/o/oauth2/auth',
     tokenUri: 'https://oauth2.googleapis.com/token',
     authProviderX509CertUrl: 'https://www.googleapis.com/oauth2/v1/certs',
-    clientC509CertUrl: process.env.FIREBASE_CLIENT_C509_CERT_URL
+    clientX509CertUrl: process.env.FIREBASE_CLIENT_C509_CERT_URL
       ? process.env.FIREBASE_CLIENT_C509_CERT_URL.replace(/["',]+$/g, '').replace(
         /^["']+/g,
         '',
