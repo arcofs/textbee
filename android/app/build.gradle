@@ -50,14 +50,14 @@ android {
             dimension "environment"
             applicationId "com.vernu.sms.dev"
             versionNameSuffix "-dev"
-            buildConfigField "String", "API_BASE_URL", '"https://api.dev.textbee.dev/api/v1/"'
+            buildConfigField "String", "API_BASE_URL", '"https://api.dev.textbee.arcofs.app/api/v1/"'
             buildConfigField "String", "ENVIRONMENT", '"development"'
-            resValue "string", "app_name", "textbee.dev (Dev)"
+            resValue "string", "app_name", "textbee.arcofs.app (Dev)"
         }
         
         prod {
             dimension "environment"
-            applicationId "com.vernu.sms"
+            applicationId "arco.textbee"
             buildConfigField "String", "API_BASE_URL", '"https://api.textbee.dev/api/v1/"'
             buildConfigField "String", "ENVIRONMENT", '"production"'
             resValue "string", "app_name", "textbee.dev"
