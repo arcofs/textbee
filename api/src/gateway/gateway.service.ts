@@ -313,12 +313,14 @@ export class GatewayService {
         })
 
         // Add to queue
+        console.time('addSendSmsJob')
         await this.smsQueueService.addSendSmsJob(
           deviceId,
           fcmMessages,
           smsBatch._id.toString(),
           delayMs,
         )
+        console.timeEnd('addSendSmsJob')
 
         return {
           success: true,
