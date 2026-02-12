@@ -31,12 +31,22 @@ async function bootstrap() {
   app.set('trust proxy', true)
   const PORT = process.env.API_PORT || process.env.PORT || 3001
 
-  const allowedOrigins = [
+  // Normalize and deduplicate allowed origins
+  const rawOrigins = [
     process.env.FRONTEND_URL,
     process.env.NEXT_PUBLIC_SITE_URL,
     process.env.SERVICE_URL_TEXTBEE_WEB,
     process.env.SERVICE_FQDN_TEXTBEE_WEB ? `https://${process.env.SERVICE_FQDN_TEXTBEE_WEB}` : undefined,
-  ].filter(Boolean) as string[]
+    'https://textbee.arcofs.app' // Hardcoded fallback as clear user intent
+  ];
+
+  const allowedOrigins = [...new Set(
+    rawOrigins
+      .filter(Boolean)
+      .map(s => s!.trim().replace(/\/$/, '')) // Trim whitespace and trailing slashes
+  )];
+
+  logger.log(`Configured CORS Allowed Origins: ${JSON.stringify(allowedOrigins)}`);
 
   app.setGlobalPrefix('api')
   app.enableVersioning({
@@ -68,10 +78,6 @@ async function bootstrap() {
     logger.error('FIREBASE_PRIVATE_KEY is missing from environment variables');
   } else {
     logger.log(`Raw Private Key Length: ${rawPrivateKey.length}`);
-    logger.log(`Raw Private Key Start: ${rawPrivateKey.substring(0, 40)}...`);
-    logger.log(`Raw Private Key End: ...${rawPrivateKey.substring(rawPrivateKey.length - 40)}`);
-    logger.log(`Raw Private Key Includes \\n literal: ${rawPrivateKey.includes('\\n')}`);
-    logger.log(`Raw Private Key Includes actual newline: ${rawPrivateKey.includes('\n')}`);
   }
 
   // Handle all common env encodings:
@@ -88,10 +94,6 @@ async function bootstrap() {
 
   if (finalizedKey) {
     logger.log(`Finalized Private Key Length: ${finalizedKey.length}`)
-    logger.log(`Finalized Private Key Start: ${finalizedKey.substring(0, 40)}...`)
-    logger.log(
-      `Finalized Private Key End: ...${finalizedKey.substring(finalizedKey.length - 40)}`,
-    )
 
     if (!finalizedKey.includes('-----BEGIN PRIVATE KEY-----')) {
       logger.error('Finalized key is missing BEGIN PRIVATE KEY header')
@@ -129,13 +131,27 @@ async function bootstrap() {
   )
   app.useBodyParser('json', { limit: '2mb' })
 
+  // Middleware to log all incoming requests, including OPTIONS
+  app.use((req, res, next) => {
+    logger.log(`Incoming Request: ${req.method} ${req.url} | Origin: ${req.headers.origin}`);
+    next();
+  });
+
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow non-browser clients (no Origin header), and configured web origins.
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true)
+      // Allow non-browser clients
+      if (!origin) {
+        return callback(null, true);
       }
-      return callback(new Error(`CORS blocked for origin: ${origin}`), false)
+
+      // Check against allowed origins
+      if (allowedOrigins.includes(origin)) {
+        logger.log(`CORS ALLOWED for origin: ${origin}`); // Log success to verify it hits
+        return callback(null, true);
+      }
+
+      logger.warn(`CORS BLOCKED for origin: ${origin}. Allowed: ${JSON.stringify(allowedOrigins)}`);
+      return callback(new Error(`CORS blocked for origin: ${origin}`), false);
     },
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
@@ -149,7 +165,7 @@ async function bootstrap() {
     ],
   })
 
-  logger.log(`CORS allowed origins: ${allowedOrigins.join(', ') || 'none configured'}`)
+  logger.log(`Server starting on port ${PORT}`);
   await app.listen(PORT)
 }
 bootstrap()
