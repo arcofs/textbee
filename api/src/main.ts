@@ -34,6 +34,8 @@ async function bootstrap() {
   const allowedOrigins = [
     process.env.FRONTEND_URL,
     process.env.NEXT_PUBLIC_SITE_URL,
+    process.env.SERVICE_URL_TEXTBEE_WEB,
+    process.env.SERVICE_FQDN_TEXTBEE_WEB ? `https://${process.env.SERVICE_FQDN_TEXTBEE_WEB}` : undefined,
   ].filter(Boolean) as string[]
 
   app.setGlobalPrefix('api')
