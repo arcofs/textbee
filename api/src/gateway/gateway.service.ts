@@ -34,7 +34,7 @@ export class GatewayService {
     private webhookService: WebhookService,
     private billingService: BillingService,
     private smsQueueService: SmsQueueService,
-  ) {}
+  ) { }
 
   async registerDevice(
     input: RegisterDeviceInputDTO,
@@ -47,12 +47,12 @@ export class GatewayService {
     })
 
     const deviceData: any = { ...input, user }
-    
+
     // Set default name to "brand model" if not provided
     if (!deviceData.name && input.brand && input.model) {
       deviceData.name = `${input.brand} ${input.model}`
     }
-    
+
     // Handle simInfo if provided
     if (input.simInfo) {
       deviceData.simInfo = {
@@ -99,7 +99,7 @@ export class GatewayService {
     }
 
     const updateData: any = { ...input }
-    
+
     // Handle simInfo if provided
     if (input.simInfo) {
       updateData.simInfo = {
@@ -107,7 +107,7 @@ export class GatewayService {
         lastUpdated: input.simInfo.lastUpdated || new Date(),
       }
     }
-    
+
     return await this.deviceModel.findByIdAndUpdate(
       deviceId,
       { $set: updateData },
@@ -138,7 +138,7 @@ export class GatewayService {
 
     try {
       const scheduledDate = new Date(scheduledAt)
-      
+
       // Check if date is valid
       if (isNaN(scheduledDate.getTime())) {
         throw new HttpException(
@@ -184,6 +184,7 @@ export class GatewayService {
     const device = await this.deviceModel.findById(deviceId)
 
     if (!device?.enabled) {
+      console.warn(`Device ${deviceId} is disabled or not found. Cannot send SMS.`)
       throw new HttpException(
         {
           success: false,
@@ -235,6 +236,7 @@ export class GatewayService {
       'send_sms',
       recipients.length,
     )
+    console.log(`Billing check passed for user ${device.user}`)
 
     // TODO: Implement a queue to send the SMS if recipients are too many
 
@@ -392,6 +394,7 @@ export class GatewayService {
         .catch((e) => {
           console.error('failed to update sms batch status to failed')
         })
+      console.error('Failed to send SMS (Catch Block):', e)
       throw new HttpException(
         {
           success: false,
@@ -481,7 +484,7 @@ export class GatewayService {
       const delayMs = this.calculateDelayFromScheduledAt(smsData.scheduledAt)
 
       for (let recipient of recipients) {
-        recipient =  recipient.replace(/\s+/g, "")
+        recipient = recipient.replace(/\s+/g, "")
         const sms = await this.smsModel.create({
           device: device._id,
           smsBatch: smsBatch._id,
@@ -858,7 +861,7 @@ export class GatewayService {
   async updateSMSStatus(deviceId: string, dto: UpdateSMSStatusDTO): Promise<any> {
 
     const device = await this.deviceModel.findById(deviceId);
-    
+
     if (!device) {
       throw new HttpException(
         {
@@ -868,9 +871,9 @@ export class GatewayService {
         HttpStatus.NOT_FOUND,
       );
     }
-    
+
     const sms = await this.smsModel.findById(dto.smsId);
-    
+
     if (!sms) {
       throw new HttpException(
         {
@@ -880,7 +883,7 @@ export class GatewayService {
         HttpStatus.NOT_FOUND,
       );
     }
-    
+
     // Verify the SMS belongs to this device
     if (sms.device.toString() !== deviceId) {
       throw new HttpException(
@@ -891,14 +894,14 @@ export class GatewayService {
         HttpStatus.FORBIDDEN,
       );
     }
-    
+
     // Normalize status to lowercase for comparison
     const normalizedStatus = dto.status.toLowerCase();
-    
+
     const updateData: any = {
       status: normalizedStatus, // Store normalized status
     };
-    
+
     // Update timestamps based on status
     if (normalizedStatus === 'sent' && dto.sentAtInMillis) {
       updateData.sentAt = new Date(dto.sentAtInMillis);
@@ -909,51 +912,51 @@ export class GatewayService {
       updateData.errorCode = dto.errorCode;
       updateData.errorMessage = dto.errorMessage || 'Unknown error';
     }
-    
+
     // Update the SMS
-const updatedSms = await this.smsModel.findByIdAndUpdate(
-  dto.smsId,
-  { $set: updateData },
-  { new: true } 
-);
-    
+    const updatedSms = await this.smsModel.findByIdAndUpdate(
+      dto.smsId,
+      { $set: updateData },
+      { new: true }
+    );
+
     // Check if all SMS in batch have the same status, then update batch status
     if (dto.smsBatchId) {
       const smsBatch = await this.smsBatchModel.findById(dto.smsBatchId);
       if (smsBatch) {
         const allSmsInBatch = await this.smsModel.find({ smsBatch: dto.smsBatchId });
-        
+
         // Check if all SMS in batch have the same status (case insensitive)
         const allHaveSameStatus = allSmsInBatch.every(sms => sms.status.toLowerCase() === normalizedStatus);
-        
+
         if (allHaveSameStatus) {
           const smsBatchStatus = normalizedStatus === 'failed' ? 'failed' : 'completed';
-          await this.smsBatchModel.findByIdAndUpdate(dto.smsBatchId, { 
-            $set: { status: smsBatchStatus } 
+          await this.smsBatchModel.findByIdAndUpdate(dto.smsBatchId, {
+            $set: { status: smsBatchStatus }
           });
         }
       }
     }
-    
+
     // Trigger webhook event for SMS status update
     try {
-       let event: WebhookEvent
-       switch (normalizedStatus) {
-          case 'sent':
-            event = WebhookEvent.MESSAGE_SENT
-            break
-          case 'delivered':
-            event = WebhookEvent.MESSAGE_DELIVERED
-            break
-          case 'failed':
-            event = WebhookEvent.MESSAGE_FAILED
-            break
-          case 'received':
-            event = WebhookEvent.MESSAGE_RECEIVED
-            break
-          default:
-            event = WebhookEvent.UNKNOWN_STATE
-          }
+      let event: WebhookEvent
+      switch (normalizedStatus) {
+        case 'sent':
+          event = WebhookEvent.MESSAGE_SENT
+          break
+        case 'delivered':
+          event = WebhookEvent.MESSAGE_DELIVERED
+          break
+        case 'failed':
+          event = WebhookEvent.MESSAGE_FAILED
+          break
+        case 'received':
+          event = WebhookEvent.MESSAGE_RECEIVED
+          break
+        default:
+          event = WebhookEvent.UNKNOWN_STATE
+      }
       this.webhookService.deliverNotification({
         sms: updatedSms,
         user: device.user,
@@ -962,7 +965,7 @@ const updatedSms = await this.smsModel.findByIdAndUpdate(
     } catch (error) {
       console.error('Failed to trigger webhook event:', error);
     }
-    
+
     return {
       success: true,
       message: 'SMS status updated successfully',
@@ -1002,9 +1005,8 @@ const updatedSms = await this.smsModel.findByIdAndUpdate(
     } else if (recipients.length === 3) {
       return `${recipients[0]}, ${recipients[1]}, and ${recipients[2]}`
     } else {
-      return `${recipients[0]}, ${recipients[1]}, and ${
-        recipients.length - 2
-      } others`
+      return `${recipients[0]}, ${recipients[1]}, and ${recipients.length - 2
+        } others`
     }
   }
 
@@ -1040,7 +1042,7 @@ const updatedSms = await this.smsModel.findByIdAndUpdate(
     }
 
     // Find all SMS messages that belong to this batch
-    const smsMessages = await this.smsModel.find({ 
+    const smsMessages = await this.smsModel.find({
       smsBatch: new Types.ObjectId(smsBatchId),
       device: smsBatch.device
     });

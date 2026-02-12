@@ -95,6 +95,27 @@ export class BillingService implements OnModuleInit {
       )
     }
     console.log('Plans seeded successfully with high limits.')
+
+    // Migration: Move all users to 'pro' plan
+    await this.migrateToProPlan()
+  }
+
+  private async migrateToProPlan() {
+    console.log('Starting migration to Pro plan...')
+    const proPlan = await this.planModel.findOne({ name: 'pro' })
+    if (!proPlan) {
+      console.error('Pro plan not found. Skipping migration.')
+      return
+    }
+
+    // Find all subscriptions that are NOT on the pro plan (optional check, or just update all)
+    // To be safe and ensure everyone is on pro:
+    const result = await this.subscriptionModel.updateMany(
+      {}, // Match all subscriptions
+      { $set: { plan: proPlan._id } },
+    )
+
+    console.log(`Migrated ${result.modifiedCount} subscriptions to Pro plan.`)
   }
 
   async getPlans(): Promise<PlanDTO[]> {
@@ -612,13 +633,14 @@ export class BillingService implements OnModuleInit {
       }
 
       const effectiveLimits = this.getEffectiveLimits(subscription, plan)
+      console.log('Effective Limits in canPerformAction:', effectiveLimits)
 
-      if (plan.name?.startsWith('custom')) {
+      if (plan && plan.name?.startsWith('custom')) {
         // For custom plans, check if custom limits are set to unlimited (-1)
         if (
-          effectiveLimits.dailyLimit === -1 &&
-          effectiveLimits.monthlyLimit === -1 &&
-          effectiveLimits.bulkSendLimit === -1
+          effectiveLimits?.dailyLimit === -1 &&
+          effectiveLimits?.monthlyLimit === -1 &&
+          effectiveLimits?.bulkSendLimit === -1
         ) {
           return true
         }
