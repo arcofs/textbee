@@ -37,7 +37,9 @@ import { CanModifyDevice } from './guards/can-modify-device.guard'
 @ApiBearerAuth()
 @Controller('gateway')
 export class GatewayController {
-  constructor(private readonly gatewayService: GatewayService) { }
+  constructor(private readonly gatewayService: GatewayService) {
+    // Controller initialized
+  }
 
   @UseGuards(AuthGuard)
   @Get('/stats')
@@ -103,8 +105,6 @@ export class GatewayController {
   ) {
     const data = await this.gatewayService.sendSMS(deviceId, smsData)
     return { data }
-    const data = await this.gatewayService.sendSMS(deviceId, smsData)
-    return { data }
   }
 
   @Options(['/devices/:id/sendSMS', '/devices/:id/send-sms'])
@@ -123,6 +123,11 @@ export class GatewayController {
     return { data }
   }
 
+  @Options(['/devices/:id/send-bulk-sms'])
+  optionsSendBulkSMS() {
+    return 'OK'
+  }
+
 
   @ApiOperation({ summary: 'Received SMS from a device' })
   @HttpCode(HttpStatus.OK)
@@ -132,6 +137,11 @@ export class GatewayController {
   async receiveSMS(@Param('id') deviceId: string, @Body() dto: ReceivedSMSDTO) {
     const data = await this.gatewayService.receiveSMS(deviceId, dto)
     return { data }
+  }
+
+  @Options(['/devices/:id/receiveSMS', '/devices/:id/receive-sms'])
+  optionsReceiveSMS() {
+    return 'OK'
   }
 
   @ApiOperation({ summary: 'Get received SMS from a device' })
