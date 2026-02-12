@@ -10,6 +10,7 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  Options,
 } from '@nestjs/common'
 import {
   ApiBearerAuth,
@@ -36,7 +37,7 @@ import { CanModifyDevice } from './guards/can-modify-device.guard'
 @ApiBearerAuth()
 @Controller('gateway')
 export class GatewayController {
-  constructor(private readonly gatewayService: GatewayService) {}
+  constructor(private readonly gatewayService: GatewayService) { }
 
   @UseGuards(AuthGuard)
   @Get('/stats')
@@ -102,6 +103,13 @@ export class GatewayController {
   ) {
     const data = await this.gatewayService.sendSMS(deviceId, smsData)
     return { data }
+    const data = await this.gatewayService.sendSMS(deviceId, smsData)
+    return { data }
+  }
+
+  @Options(['/devices/:id/sendSMS', '/devices/:id/send-sms'])
+  optionsSendSMS() {
+    return 'OK'
   }
 
   @ApiOperation({ summary: 'Send Bulk SMS' })
@@ -140,7 +148,7 @@ export class GatewayController {
     // Extract page and limit from query params, with defaults and max values
     const page = req.query.page ? parseInt(req.query.page, 10) : 1;
     const limit = req.query.limit ? Math.min(parseInt(req.query.limit, 10), 100) : 50;
-    
+
     const result = await this.gatewayService.getReceivedSMS(deviceId, page, limit)
     return result;
   }
@@ -160,7 +168,7 @@ export class GatewayController {
     const page = req.query.page ? parseInt(req.query.page, 10) : 1;
     const limit = req.query.limit ? Math.min(parseInt(req.query.limit, 10), 100) : 50;
     const type = req.query.type || '';
-    
+
     const result = await this.gatewayService.getMessages(deviceId, type, page, limit);
     return result;
   }
