@@ -28,6 +28,7 @@ process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
 
 async function bootstrap() {
   const app: NestExpressApplication = await NestFactory.create(AppModule)
+  app.set('trust proxy', true)
   const PORT = process.env.API_PORT || process.env.PORT || 3001
 
   const allowedOrigins = [
