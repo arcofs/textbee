@@ -71,6 +71,9 @@ export class BillingService implements OnModuleInit {
         monthlyPrice: 0,
         yearlyPrice: 0,
         isActive: true,
+        polarProductId: 'free_tier',
+        polarMonthlyProductId: 'free_tier_month',
+        polarYearlyProductId: 'free_tier_year',
       },
       {
         name: 'pro',

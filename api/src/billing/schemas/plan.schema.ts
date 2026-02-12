@@ -23,13 +23,13 @@ export class Plan {
   @Prop({})
   yearlyPrice: number // in cents
 
-  @Prop({ type: String, unique: true })
+  @Prop({ type: String, unique: true, sparse: true })
   polarProductId?: string
 
-  @Prop({ type: String, unique: true })
+  @Prop({ type: String, unique: true, sparse: true })
   polarMonthlyProductId?: string
 
-  @Prop({ type: String, unique: true })
+  @Prop({ type: String, unique: true, sparse: true })
   polarYearlyProductId?: string
 
   @Prop({ type: Boolean, default: true })
