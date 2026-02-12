@@ -28,6 +28,14 @@ process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
 
 async function bootstrap() {
   const app: NestExpressApplication = await NestFactory.create(AppModule)
+
+  // Middleware to log all incoming requests, including OPTIONS - Placed at the very top
+  app.use((req, res, next) => {
+    const logger = new Logger('RequestLogger');
+    logger.log(`Incoming Request: ${req.method} ${req.url} | Origin: ${req.headers.origin || 'None'}`);
+    next();
+  });
+
   app.set('trust proxy', true)
   const PORT = process.env.API_PORT || process.env.PORT || 3001
 
@@ -130,12 +138,6 @@ async function bootstrap() {
     express.raw({ type: 'application/json' }),
   )
   app.useBodyParser('json', { limit: '2mb' })
-
-  // Middleware to log all incoming requests, including OPTIONS
-  app.use((req, res, next) => {
-    logger.log(`Incoming Request: ${req.method} ${req.url} | Origin: ${req.headers.origin}`);
-    next();
-  });
 
   app.enableCors({
     origin: (origin, callback) => {
