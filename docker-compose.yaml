@@ -63,6 +63,7 @@ services:
       - textbee-network
     labels:
       - "traefik.enable=true"
+      - "traefik.http.services.textbee-api.loadbalancer.server.port=3001"
       - "traefik.http.middlewares.force-https-api.headers.customrequestheaders.X-Forwarded-Proto=https"
       - "traefik.http.routers.http-0.middlewares=force-https-api"
 
