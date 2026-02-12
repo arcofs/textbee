@@ -3,6 +3,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  OnModuleInit,
 } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model, Types } from 'mongoose'
@@ -32,7 +33,7 @@ import {
 } from './billing-notifications.service'
 
 @Injectable()
-export class BillingService {
+export class BillingService implements OnModuleInit {
   private polarApi
 
   constructor(
@@ -53,6 +54,44 @@ export class BillingService {
       server:
         process.env.POLAR_SERVER === 'production' ? 'production' : 'sandbox',
     })
+  }
+
+  async onModuleInit() {
+    await this.seedPlans()
+  }
+
+  private async seedPlans() {
+    console.log('Seeding plans...')
+    const plans = [
+      {
+        name: 'free',
+        dailyLimit: 1000000,
+        monthlyLimit: 10000000,
+        bulkSendLimit: 100000,
+        monthlyPrice: 0,
+        yearlyPrice: 0,
+        isActive: true,
+      },
+      {
+        name: 'pro',
+        dailyLimit: 10000000,
+        monthlyLimit: 100000000,
+        bulkSendLimit: 1000000,
+        monthlyPrice: 2000, // $20
+        yearlyPrice: 20000, // $200
+        isActive: true,
+      },
+    ]
+
+    for (const plan of plans) {
+      console.log(`Upserting plan: ${plan.name}`)
+      await this.planModel.findOneAndUpdate(
+        { name: plan.name },
+        { $set: plan },
+        { upsert: true, new: true },
+      )
+    }
+    console.log('Plans seeded successfully with high limits.')
   }
 
   async getPlans(): Promise<PlanDTO[]> {
@@ -108,7 +147,7 @@ export class BillingService {
                 },
                 sendEmail: true,
               })
-              .catch(() => {})
+              .catch(() => { })
           }
         }
         if (effectiveLimits.monthlyLimit && effectiveLimits.monthlyLimit > 0) {
@@ -130,10 +169,10 @@ export class BillingService {
                 },
                 sendEmail: true,
               })
-              .catch(() => {})
+              .catch(() => { })
           }
         }
-      } catch {}
+      } catch { }
       return {
         ...subscription.toObject(),
         usage: {
@@ -144,23 +183,23 @@ export class BillingService {
           dailyRemaining:
             effectiveLimits.dailyLimit === -1
               ? -1
-              : effectiveLimits.dailyLimit - processedSmsToday,
+              : Math.max(0, effectiveLimits.dailyLimit - processedSmsToday),
           monthlyRemaining:
             effectiveLimits.monthlyLimit === -1
               ? -1
-              : effectiveLimits.monthlyLimit - processedSmsLastMonth,
+              : Math.max(0, effectiveLimits.monthlyLimit - processedSmsLastMonth),
           dailyUsagePercentage:
             effectiveLimits.dailyLimit === -1
               ? 0
               : Math.round(
-                  (processedSmsToday / effectiveLimits.dailyLimit) * 100,
-                ),
+                (processedSmsToday / effectiveLimits.dailyLimit) * 100,
+              ),
           monthlyUsagePercentage:
             effectiveLimits.monthlyLimit === -1
               ? 0
               : Math.round(
-                  (processedSmsLastMonth / effectiveLimits.monthlyLimit) * 100,
-                ),
+                (processedSmsLastMonth / effectiveLimits.monthlyLimit) * 100,
+              ),
         },
       }
     }
@@ -185,7 +224,7 @@ export class BillingService {
               },
               sendEmail: true,
             })
-            .catch(() => {})
+            .catch(() => { })
         }
       }
       if (effectiveLimits.monthlyLimit && effectiveLimits.monthlyLimit > 0) {
@@ -206,10 +245,10 @@ export class BillingService {
               },
               sendEmail: true,
             })
-            .catch(() => {})
+            .catch(() => { })
         }
       }
-    } catch {}
+    } catch { }
 
     return {
       plan,
@@ -222,23 +261,23 @@ export class BillingService {
         dailyRemaining:
           effectiveLimits.dailyLimit === -1
             ? -1
-            : effectiveLimits.dailyLimit - processedSmsToday,
+            : Math.max(0, effectiveLimits.dailyLimit - processedSmsToday),
         monthlyRemaining:
           effectiveLimits.monthlyLimit === -1
             ? -1
-            : effectiveLimits.monthlyLimit - processedSmsLastMonth,
+            : Math.max(0, effectiveLimits.monthlyLimit - processedSmsLastMonth),
         dailyUsagePercentage:
           effectiveLimits.dailyLimit === -1
             ? 0
             : Math.round(
-                (processedSmsToday / effectiveLimits.dailyLimit) * 100,
-              ),
+              (processedSmsToday / effectiveLimits.dailyLimit) * 100,
+            ),
         monthlyUsagePercentage:
           effectiveLimits.monthlyLimit === -1
             ? 0
             : Math.round(
-                (processedSmsLastMonth / effectiveLimits.monthlyLimit) * 100,
-              ),
+              (processedSmsLastMonth / effectiveLimits.monthlyLimit) * 100,
+            ),
       },
     }
   }
@@ -268,7 +307,7 @@ export class BillingService {
     })
 
     const currentSubscription = await this.getCurrentSubscription(user)
-    if ((currentSubscription?.plan as Plan)?.name ===  payload.planName) {
+    if ((currentSubscription?.plan as Plan)?.name === payload.planName) {
       throw new BadRequestException({
         message: `You are already on ${payload.planName} plan, please contact billing@textbee.dev to get a custom plan`,
         code: 'ALREADY_ON_PLAN',
@@ -403,18 +442,27 @@ export class BillingService {
   }
 
   private getEffectiveLimits(subscription: any, plan: any) {
+    if (!plan && !subscription) {
+      // Fallback if both are missing (should ideally not happen if DB is seeded)
+      return {
+        dailyLimit: 0,
+        monthlyLimit: 0,
+        bulkSendLimit: 0,
+      }
+    }
+
     if (!subscription) {
       return {
-        dailyLimit: plan.dailyLimit,
-        monthlyLimit: plan.monthlyLimit,
-        bulkSendLimit: plan.bulkSendLimit,
+        dailyLimit: plan?.dailyLimit ?? 0,
+        monthlyLimit: plan?.monthlyLimit ?? 0,
+        bulkSendLimit: plan?.bulkSendLimit ?? 0,
       }
     }
 
     return {
-      dailyLimit: subscription.customDailyLimit ?? plan.dailyLimit,
-      monthlyLimit: subscription.customMonthlyLimit ?? plan.monthlyLimit,
-      bulkSendLimit: subscription.customBulkSendLimit ?? plan.bulkSendLimit,
+      dailyLimit: subscription.customDailyLimit ?? plan?.dailyLimit ?? 0,
+      monthlyLimit: subscription.customMonthlyLimit ?? plan?.monthlyLimit ?? 0,
+      bulkSendLimit: subscription.customBulkSendLimit ?? plan?.bulkSendLimit ?? 0,
     }
   }
 
@@ -426,6 +474,9 @@ export class BillingService {
     if (!subscription) {
       // Default to free plan limits
       const freePlan = await this.planModel.findOne({ name: 'free' })
+      if (!freePlan) {
+        console.warn('Free plan not found in getUserLimits')
+      }
       return this.getEffectiveLimits(null, freePlan)
     }
 
@@ -547,6 +598,12 @@ export class BillingService {
 
       if (!subscription) {
         plan = await this.planModel.findOne({ name: 'free' })
+        if (!plan) {
+          console.warn('Free plan not found in canPerformAction. Using 0 limits.')
+          // We can allow or disallow here. If we want robustness, we might want to allow 
+          // but strictly speacking if no plan, no service.
+          // However, getEffectiveLimits handles null plan now by returning 0.
+        }
       } else {
         plan = await this.planModel.findById(subscription.plan)
       }
@@ -592,11 +649,17 @@ export class BillingService {
         const monthlyFinite = effectiveLimits.monthlyLimit !== -1
 
         // exceeded checks
-        dailyExceeded =
-          dailyFinite && processedSmsToday + value > effectiveLimits.dailyLimit
-        monthlyExceeded =
-          monthlyFinite &&
-          processedSmsLastMonth + value > effectiveLimits.monthlyLimit
+        if (effectiveLimits.dailyLimit === 0 && effectiveLimits.monthlyLimit === 0) {
+          // If limits are 0 (likely due to missing plan), we effectively block sending
+          dailyExceeded = true
+          monthlyExceeded = true
+        } else {
+          dailyExceeded =
+            dailyFinite && processedSmsToday + value > effectiveLimits.dailyLimit
+          monthlyExceeded =
+            monthlyFinite &&
+            processedSmsLastMonth + value > effectiveLimits.monthlyLimit
+        }
         bulkExceeded =
           effectiveLimits.bulkSendLimit !== -1 &&
           value > effectiveLimits.bulkSendLimit
@@ -718,6 +781,9 @@ export class BillingService {
     let plan: PlanDocument
     if (!subscription) {
       plan = await this.planModel.findOne({ name: 'free' })
+      if (!plan) {
+        console.warn('Free plan not found in getUsage')
+      }
     } else {
       plan = await this.planModel.findById(subscription.plan)
     }
@@ -751,11 +817,11 @@ export class BillingService {
       dailyRemaining:
         effectiveLimits.dailyLimit === -1
           ? -1
-          : effectiveLimits.dailyLimit - processedSmsToday,
+          : Math.max(0, effectiveLimits.dailyLimit - processedSmsToday),
       monthlyRemaining:
         effectiveLimits.monthlyLimit === -1
           ? -1
-          : effectiveLimits.monthlyLimit - processedSmsLastMonth,
+          : Math.max(0, effectiveLimits.monthlyLimit - processedSmsLastMonth),
     }
   }
 

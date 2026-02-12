@@ -58,7 +58,7 @@ android {
         prod {
             dimension "environment"
             applicationId "arco.textbee"
-            buildConfigField "String", "API_BASE_URL", '"https://api.textbee.dev/api/v1/"'
+            buildConfigField "String", "API_BASE_URL", '"https://textbeeapi.arcofs.app/api/v1/"'
             buildConfigField "String", "ENVIRONMENT", '"production"'
             resValue "string", "app_name", "textbee.dev"
         }
